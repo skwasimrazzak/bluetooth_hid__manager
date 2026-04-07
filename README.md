@@ -69,6 +69,17 @@ The app using this plugin must request:
 
 ---
 
+## iOS Setup
+This package is Android only. If you include it in a cross-platform
+project, add the following to your app's ios/Runner/Info.plist:
+
+```plist
+<key>NSBluetoothAlwaysUsageDescription</key>
+<string>This app does not use Bluetooth on iOS.</string>
+```
+
+---
+
 ## 📦 Installation
 
 Add the plugin to your `pubspec.yaml`:
@@ -76,4 +87,5 @@ Add the plugin to your `pubspec.yaml`:
 ```yaml
 dependencies:
   bluetooth_hid_manager:
-    path: ../bluetooth_hid_manager
+    git:
+      url: https://github.com/yourusername/bluetooth_hid_manager.git
