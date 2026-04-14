@@ -1,5 +1,5 @@
 import 'package:flutter/services.dart';
-import 'package:bluetooth_hid_manager/bluetooth_hid_manager_method_channel.dart';
+import 'package:bluetooth_hid_manager/bluetooth_hid_manager_platform_interface.dart';
 import 'hid_exception.dart';
 
 class GamepadButton {
@@ -31,14 +31,13 @@ class BluetoothHidGamepad {
     int rightY = 0,
   }) async {
     try {
-      await MethodChannelBluetoothHidManager.hidMethodChannel
-          .invokeMethod('sendGamepadReport', {
-            'buttons': buttons,
-            'lx': leftX.clamp(-127, 127),
-            'ly': leftY.clamp(-127, 127),
-            'rx': rightX.clamp(-127, 127),
-            'ry': rightY.clamp(-127, 127),
-          });
+      await BluetoothHidManagerPlatform.instance.sendGamepadReport(
+        buttons,
+        leftX.clamp(-127, 127),
+        leftY.clamp(-127, 127),
+        rightX.clamp(-127, 127),
+        rightY.clamp(-127, 127),
+      );
     } on PlatformException catch (e) {
       throw HidException(e.code, e.message ?? 'sendGamepadReport failed');
     }

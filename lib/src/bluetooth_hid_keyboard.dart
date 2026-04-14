@@ -1,6 +1,6 @@
 import 'package:flutter/services.dart';
-import 'package:bluetooth_hid_manager/bluetooth_hid_manager_method_channel.dart';
 import 'hid_exception.dart';
+import 'package:bluetooth_hid_manager/bluetooth_hid_manager_platform_interface.dart';
 
 class KeyboardModifier {
   static const int none = 0x00;
@@ -60,9 +60,9 @@ class BluetoothHidKeyboard {
   }) async {
     if (keys.length > 6) throw ArgumentError('Maximum 6 simultaneous keys');
     try {
-      await MethodChannelBluetoothHidManager.hidMethodChannel.invokeMethod(
-        'sendKeyboardReport',
-        {'modifier': modifier, 'keys': keys},
+      await BluetoothHidManagerPlatform.instance.sendKeyboardReport(
+        modifier,
+        keys,
       );
     } on PlatformException catch (e) {
       throw HidException(e.code, e.message ?? 'sendKeys failed');

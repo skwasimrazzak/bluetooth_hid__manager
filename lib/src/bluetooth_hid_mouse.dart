@@ -1,5 +1,5 @@
 import 'package:flutter/services.dart';
-import 'package:bluetooth_hid_manager/bluetooth_hid_manager_method_channel.dart';
+import 'package:bluetooth_hid_manager/bluetooth_hid_manager_platform_interface.dart';
 import 'hid_exception.dart';
 
 class MouseButton {
@@ -17,13 +17,12 @@ class BluetoothHidMouse {
     int wheel = 0,
   }) async {
     try {
-      await MethodChannelBluetoothHidManager.hidMethodChannel
-          .invokeMethod('sendMouseReport', {
-            'buttons': buttons,
-            'x': x.clamp(-127, 127),
-            'y': y.clamp(-127, 127),
-            'wheel': wheel.clamp(-127, 127),
-          });
+      await BluetoothHidManagerPlatform.instance.sendMouseReport(
+        buttons,
+        x.clamp(-127, 127),
+        y.clamp(-127, 127),
+        wheel.clamp(-127, 127),
+      );
     } on PlatformException catch (e) {
       throw HidException(e.code, e.message ?? 'sendMouseReport failed');
     }
