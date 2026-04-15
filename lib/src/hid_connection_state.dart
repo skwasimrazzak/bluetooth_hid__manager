@@ -1,4 +1,5 @@
 enum HidConnectionState {
+  registered,
   connected,
   disconnected,
   connecting,

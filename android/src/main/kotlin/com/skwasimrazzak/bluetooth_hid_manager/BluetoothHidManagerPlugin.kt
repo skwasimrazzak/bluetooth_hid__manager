@@ -130,7 +130,8 @@ class BluetoothHidManagerPlugin : FlutterPlugin, MethodCallHandler, ActivityAwar
     private val hidCallback = object : BluetoothHidDevice.Callback() {
         override fun onAppStatusChanged(pluggedDevice: BluetoothDevice?, registered: Boolean) {
             isAppRegistered = registered
-            if (!registered) emitConnectionState("unregistered")
+            if (registered) emitConnectionState("registered")
+            else emitConnectionState("unregistered")
         }
 
         override fun onConnectionStateChanged(device: BluetoothDevice, state: Int) {
