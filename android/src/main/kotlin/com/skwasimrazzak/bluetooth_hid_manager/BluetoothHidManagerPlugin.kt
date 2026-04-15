@@ -12,6 +12,11 @@ import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.common.MethodChannel.Result
 import java.util.concurrent.Executors
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+import android.content.pm.PackageManager
+import android.app.Activity
+import io.flutter.plugin.common.PluginRegistry
 
 class BluetoothHidManagerPlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
 
@@ -25,6 +30,10 @@ class BluetoothHidManagerPlugin : FlutterPlugin, MethodCallHandler, ActivityAwar
     private var isAppRegistered = false
 
     private var eventSink: EventChannel.EventSink? = null
+
+    private var activity: Activity? = null
+    private var pendingResult: Result? = null
+    private val PERMISSION_REQUEST_CODE = 42
 
     override fun onAttachedToEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
         context = binding.applicationContext
@@ -40,10 +49,53 @@ class BluetoothHidManagerPlugin : FlutterPlugin, MethodCallHandler, ActivityAwar
         bluetoothAdapter?.closeProfileProxy(BluetoothProfile.HID_DEVICE, hidDevice)
     }
 
-    override fun onAttachedToActivity(binding: ActivityPluginBinding) {}
-    override fun onDetachedFromActivityForConfigChanges() {}
-    override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {}
-    override fun onDetachedFromActivity() {}
+    override fun onAttachedToActivity(binding: ActivityPluginBinding) {
+        activity = binding.activity
+        binding.addRequestPermissionsResultListener(permissionsResultListener)
+    }
+    override fun onDetachedFromActivityForConfigChanges() {
+        activity = null
+    }
+    override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {
+        activity = binding.activity
+        binding.addRequestPermissionsResultListener(permissionsResultListener)
+    }
+    override fun onDetachedFromActivity() {
+        activity = null
+    }
+
+    private val permissionsResultListener =
+        PluginRegistry.RequestPermissionsResultListener { requestCode, _, grantResults ->
+            if (requestCode != PERMISSION_REQUEST_CODE) return@RequestPermissionsResultListener false
+
+            val allGranted = grantResults.isNotEmpty() &&
+                    grantResults.all { it == PackageManager.PERMISSION_GRANTED }
+
+            if (allGranted) {
+                proceedWithInit(pendingResult ?: return@RequestPermissionsResultListener true)
+            } else {
+                pendingResult?.error(
+                    "PERMISSION_DENIED",
+                    "Bluetooth permissions denied by user",
+                    null
+                )
+            }
+            pendingResult = null
+            true
+        }
+
+    private fun getMissingPermissions(): List<String> {
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.S) {
+            return emptyList() // Pre-Android 12 — manifest declaration is enough
+        }
+        val required = listOf(
+            android.Manifest.permission.BLUETOOTH_CONNECT,
+            android.Manifest.permission.BLUETOOTH_ADVERTISE
+        )
+        return required.filter {
+            ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED
+        }
+    }
 
     private val connectionStreamHandler = object : EventChannel.StreamHandler {
         override fun onListen(arguments: Any?, sink: EventChannel.EventSink?) {
@@ -121,7 +173,7 @@ class BluetoothHidManagerPlugin : FlutterPlugin, MethodCallHandler, ActivityAwar
         )
     }
 
-    private fun init(result: Result) {
+    private fun proceedWithInit(result: Result) {
         val btManager = context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
         bluetoothAdapter = btManager?.adapter
 
@@ -136,6 +188,28 @@ class BluetoothHidManagerPlugin : FlutterPlugin, MethodCallHandler, ActivityAwar
 
         bluetoothAdapter!!.getProfileProxy(context, profileListener, BluetoothProfile.HID_DEVICE)
         result.success(null)
+    }
+
+    private fun init(result: Result) {
+        val missing = getMissingPermissions()
+
+        if (missing.isEmpty()) {
+            proceedWithInit(result)
+            return
+        }
+
+        val currentActivity = activity
+        if (currentActivity == null) {
+            result.error("NO_ACTIVITY", "Activity not available to request permissions", null)
+            return
+        }
+
+        pendingResult = result
+        ActivityCompat.requestPermissions(
+            currentActivity,
+            missing.toTypedArray(),
+            PERMISSION_REQUEST_CODE
+        )
     }
 
     private fun connect(call: MethodCall, result: Result) {
